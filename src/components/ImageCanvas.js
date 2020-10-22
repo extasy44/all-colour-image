@@ -1,106 +1,142 @@
 import React, { useRef, useEffect } from 'react';
 
-const ImageCanvas = ({ width, height, pixel, filter }) => {
+const ImageCanvas = ({ width, height, filter }) => {
   const canvasRef = useRef(null);
-  const randomFactor = 80;
-  const redFactor = 0.2;
-  const blueFactor = 0.12;
-  const greenFactor = 0.15;
-  const rArray = [];
-  const gArray = [];
-  const bArray = [];
-  const colours = [];
-  const hexSet = new Set();
+  let canvas = null;
+  let ctx = null;
 
-  const breakIntoSteps = (interval = 8, max = 256) => {
-    for (let i = interval; i <= max; i += interval) {
-      rArray.push(i);
-      gArray.push(i);
-      bArray.push(i);
-    }
-  };
+  const palette = [];
+  const grid = [];
+  const prevPositions = [];
+  let currentGrid = {};
+  let imageData = null;
+  const steps = 32;
+  const step = 8;
 
-  const createRGBArray = () => {
-    for (let i = 0; i < rArray.length; i++) {
-      for (let j = 0; j < gArray.length; j++) {
-        for (let k = 0; k < bArray.length; k++) {
-          colours.push({ r: rArray[i], g: gArray[j], b: bArray[k] });
-          //hexSet.add(rgbToHex(rArray[i], gArray[i], bArray[i]));
-        }
-      }
-    }
-  };
+  const init = () => {
+    canvas = canvasRef.current;
+    ctx = canvas.getContext('2d');
+    imageData = ctx.createImageData(width, height);
+    currentGrid = {
+      x: randomInt(0, width),
+      y: randomInt(0, height),
+    };
 
-  const createCanvas = (ctx, width, height, pixelSize, filter) => {
-    console.log(filter);
     //set canvas size
     ctx.canvas.width = width;
     ctx.canvas.height = height;
-    shuffle(filter);
+    createPalette();
+    createGrid();
+  };
 
-    //check if the container can accomodate exactly the size of all colour components
-    if (width * height === colours.length * pixelSize) {
-      if (pixelSize === 1) pixelSize = 2; // re-set value if pixelSize is 1
-
-      let count = 0;
-      for (let i = 0; i < height / (pixelSize / 2); i++) {
-        for (let j = 0; j < width / (pixelSize / 2); j++) {
-          let px = (j * pixelSize) / 2;
-          let py = (i * pixelSize) / 2;
-
-          randomInt(0, colours.length - 1);
-
-          ctx.fillStyle = `rgb(
-            ${colours[count].r}, ${colours[count].g}, ${colours[count].b}
-          )`;
-          ctx.fillRect(px, py, pixelSize / 2, pixelSize / 2);
-
-          count++;
+  const createPalette = () => {
+    for (let r = 0; r < steps; r++) {
+      for (let g = 0; g < steps; g++) {
+        for (let b = 0; b < steps; b++) {
+          palette.push({
+            r: Math.ceil((r * 255) / steps + step) - 1,
+            g: Math.ceil((g * 255) / steps + step) - 1,
+            b: Math.ceil((b * 255) / steps + step) - 1,
+          });
         }
       }
-      console.log(count); // should show 32768
-    } else {
-      alert('The dimensions of the image requested to generate is invalid.');
     }
   };
 
-  const selectRelevantColor = (color, index) => {
-    var relevancies = [];
-    var relatedColours = [];
-    for (var i = 0; i < colours.length; i++) {
-      var c = colours[index];
-      var relevancy =
-        Math.pow((c.r - color.r) * redFactor, 2) +
-        Math.pow((c.b - color.b) * blueFactor, 2) +
-        Math.pow((c.g - color.g) * greenFactor, 2);
-      relevancies.push(relevancy);
-      relatedColours[relevancy] = index;
+  const createGrid = () => {
+    for (let x = 0; x < width; x++) {
+      grid.push([]);
+      for (let y = 0; y < height; y++) {
+        grid[x].push(0); //0: empty, 1: filled
+      }
     }
-    return colours[Math.min(relevancies)];
   };
 
-  const rgbToHex = (r, g, b) => {
-    r = r.toString(16);
-    g = g.toString(16);
-    b = b.toString(16);
+  const drawRandomImage = (draw = true) => {
+    shuffle(filter);
+    clearCanvase();
+    if (width * height === palette.length) {
+      if (draw) {
+        do {
+          let notMoved = true;
+          while (notMoved) {
+            let emptyGrids = checkEmptyGrids();
 
-    if (r.length === 1) r = '0' + r;
-    if (g.length === 1) g = '0' + g;
-    if (b.length === 1) b = '0' + b;
+            if (emptyGrids.length > 0) {
+              let test = emptyGrids[randomInt(0, emptyGrids.length)];
+              prevPositions.push(currentGrid);
+              currentGrid = test;
+              grid[currentGrid.x][currentGrid.y] = 1;
+              changePixelColour(palette.pop(), currentGrid.x, currentGrid.y);
+              notMoved = false;
+            } else {
+              if (prevPositions.length !== 0) {
+                currentGrid = prevPositions.pop();
+              } else {
+                break;
+              }
+            }
+          }
+        } while (prevPositions.length > 0);
+        ctx.putImageData(imageData, 0, 0);
+      }
+    }
+  };
 
-    return '#' + r + g + b;
+  const clearCanvase = () => {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+  };
+
+  const checkEmptyGrids = () => {
+    var emptyGrid = [];
+
+    if (currentGrid.x > 0 && grid[currentGrid.x - 1][currentGrid.y] === 0) {
+      emptyGrid.push({ x: currentGrid.x - 1, y: currentGrid.y });
+    }
+
+    if (
+      currentGrid.x < width - 1 &&
+      grid[currentGrid.x + 1][currentGrid.y] === 0
+    ) {
+      emptyGrid.push({ x: currentGrid.x + 1, y: currentGrid.y });
+    }
+
+    if (currentGrid.y > 0 && grid[currentGrid.x][currentGrid.y - 1] === 0) {
+      emptyGrid.push({ x: currentGrid.x, y: currentGrid.y - 1 });
+    }
+
+    if (
+      currentGrid.y < height - 1 &&
+      grid[currentGrid.x][currentGrid.y + 1] === 0
+    ) {
+      emptyGrid.push({ x: currentGrid.x, y: currentGrid.y + 1 });
+    }
+
+    return emptyGrid;
+  };
+
+  const changePixelColour = (colour, x, y) => {
+    imageData.data[(x + y * width) * 4 + 0] = colour.r;
+    imageData.data[(x + y * width) * 4 + 1] = colour.g;
+    imageData.data[(x + y * width) * 4 + 2] = colour.b;
+    imageData.data[(x + y * width) * 4 + 3] = 255;
+  };
+
+  const randomInt = (min, max) => {
+    return Math.floor(Math.random() * (max - min));
   };
 
   const shuffle = (filter) => {
     switch (filter) {
       case 'redShuffle':
-        colours.sort((a, b) => {
+        palette.sort((a, b) => {
           return b.r + b.b - (a.r + a.b);
         });
         break;
 
       case 'barShuffle':
-        colours.sort((a, b) => {
+        palette.sort((a, b) => {
           const rgb = a.r + a.g + a.b;
           const rgbNext = b.r + b.g + b.b;
           if (rgb > rgbNext) return -1;
@@ -110,16 +146,16 @@ const ImageCanvas = ({ width, height, pixel, filter }) => {
         break;
 
       case 'randomShuffle':
-        let currentIndex = colours.length;
+        let currentIndex = palette.length;
         let temporaryValue;
         let randomIndex;
 
         while (0 !== currentIndex) {
-          randomIndex = randomInt(0, colours.length - 1);
+          randomIndex = randomInt(0, palette.length - 1);
           currentIndex -= 1;
-          temporaryValue = colours[currentIndex];
-          colours[currentIndex] = colours[randomIndex];
-          colours[randomIndex] = temporaryValue;
+          temporaryValue = palette[currentIndex];
+          palette[currentIndex] = palette[randomIndex];
+          palette[randomIndex] = temporaryValue;
         }
         break;
 
@@ -128,19 +164,9 @@ const ImageCanvas = ({ width, height, pixel, filter }) => {
     }
   };
 
-  const randomInt = (min, max) => {
-    return Math.floor(Math.random() * (max - min));
-  };
-
   useEffect(() => {
-    const canvas = canvasRef.current;
-    const context = canvas.getContext('2d');
-
-    breakIntoSteps();
-    createRGBArray();
-
-    //default render on mount
-    createCanvas(context, width, height, pixel, filter);
+    init();
+    drawRandomImage();
   });
 
   return <canvas ref={canvasRef} />;

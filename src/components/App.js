@@ -6,7 +6,8 @@ const App = () => {
 
   return (
     <div className="container" style={{ padding: '1.2rem' }}>
-      <h2 align="center">Image showing all 15bit RGB colours!</h2>
+      <h2 align="center">show all 15bit RGB colours!</h2>
+
       <div align="center">
         <button className="button" onClick={() => setFilter('default')}>
           Default
@@ -23,7 +24,7 @@ const App = () => {
       </div>
 
       <p align="center">
-        <ImageCanvas width={512} height={256} pixel={4} filter={filter} />
+        <ImageCanvas width={256} height={128} filter={filter} />
       </p>
     </div>
   );
