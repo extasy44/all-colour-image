@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import ImageCanvas from './ImageCanvas';
 
 const App = () => {
-  const [filter, setFilter] = useState('');
+  const [filter, setFilter] = useState('default');
 
   return (
     <div className="container" style={{ padding: '1.2rem' }}>
@@ -12,14 +12,14 @@ const App = () => {
         <button className="button" onClick={() => setFilter('default')}>
           Default
         </button>
-        <button className="button" onClick={() => setFilter('barShuffle')}>
-          Bar Shuffle
+        <button className="button" onClick={() => setFilter('shuffle1')}>
+          Shuffle1
         </button>
-        <button className="button" onClick={() => setFilter('redShuffle')}>
-          Red Shuffle
+        <button className="button" onClick={() => setFilter('shuffle2')}>
+          Shuffle2
         </button>
-        <button className="button" onClick={() => setFilter('randomShuffle')}>
-          Random Shuffle
+        <button className="button" onClick={() => setFilter('shuffle3')}>
+          Shuffle3
         </button>
       </div>
 

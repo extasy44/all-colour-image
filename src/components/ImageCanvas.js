@@ -7,7 +7,7 @@ const ImageCanvas = ({ width, height, filter }) => {
 
   const palette = [];
   const grid = [];
-  const prevPositions = [];
+  const prevGrids = [];
   let currentGrid = {};
   let imageData = null;
   const steps = 32;
@@ -21,8 +21,6 @@ const ImageCanvas = ({ width, height, filter }) => {
       x: randomInt(0, width),
       y: randomInt(0, height),
     };
-
-    //set canvas size
     ctx.canvas.width = width;
     ctx.canvas.height = height;
     createPalette();
@@ -34,9 +32,9 @@ const ImageCanvas = ({ width, height, filter }) => {
       for (let g = 0; g < steps; g++) {
         for (let b = 0; b < steps; b++) {
           palette.push({
-            r: Math.ceil((r * 255) / steps + step) - 1,
-            g: Math.ceil((g * 255) / steps + step) - 1,
-            b: Math.ceil((b * 255) / steps + step) - 1,
+            r: (r * 255) / steps + step - 1,
+            g: (g * 255) / steps + step - 1,
+            b: (b * 255) / steps + step - 1,
           });
         }
       }
@@ -58,26 +56,30 @@ const ImageCanvas = ({ width, height, filter }) => {
     if (width * height === palette.length) {
       if (draw) {
         do {
-          let notMoved = true;
-          while (notMoved) {
-            let emptyGrids = checkEmptyGrids();
+          let moved = false;
+          while (!moved) {
+            let neighbours = checkEmptyNeighbours();
 
-            if (emptyGrids.length > 0) {
-              let test = emptyGrids[randomInt(0, emptyGrids.length)];
-              prevPositions.push(currentGrid);
-              currentGrid = test;
+            if (neighbours.length > 0) {
+              let neighbour = neighbours[randomInt(0, neighbours.length)];
+              prevGrids.push(currentGrid);
+              currentGrid = neighbour;
               grid[currentGrid.x][currentGrid.y] = 1;
-              changePixelColour(palette.pop(), currentGrid.x, currentGrid.y);
-              notMoved = false;
+              if (palette.length > 0) {
+                changePixelColour(palette.pop(), currentGrid.x, currentGrid.y);
+              } else {
+                break;
+              }
+              moved = true;
             } else {
-              if (prevPositions.length !== 0) {
-                currentGrid = prevPositions.pop();
+              if (prevGrids.length !== 0) {
+                currentGrid = prevGrids.pop();
               } else {
                 break;
               }
             }
           }
-        } while (prevPositions.length > 0);
+        } while (prevGrids.length > 0);
         ctx.putImageData(imageData, 0, 0);
       }
     }
@@ -88,32 +90,32 @@ const ImageCanvas = ({ width, height, filter }) => {
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   };
 
-  const checkEmptyGrids = () => {
-    var emptyGrid = [];
+  const checkEmptyNeighbours = () => {
+    var emptyNeighbours = [];
 
     if (currentGrid.x > 0 && grid[currentGrid.x - 1][currentGrid.y] === 0) {
-      emptyGrid.push({ x: currentGrid.x - 1, y: currentGrid.y });
+      emptyNeighbours.push({ x: currentGrid.x - 1, y: currentGrid.y });
     }
 
     if (
       currentGrid.x < width - 1 &&
       grid[currentGrid.x + 1][currentGrid.y] === 0
     ) {
-      emptyGrid.push({ x: currentGrid.x + 1, y: currentGrid.y });
+      emptyNeighbours.push({ x: currentGrid.x + 1, y: currentGrid.y });
     }
 
     if (currentGrid.y > 0 && grid[currentGrid.x][currentGrid.y - 1] === 0) {
-      emptyGrid.push({ x: currentGrid.x, y: currentGrid.y - 1 });
+      emptyNeighbours.push({ x: currentGrid.x, y: currentGrid.y - 1 });
     }
 
     if (
       currentGrid.y < height - 1 &&
       grid[currentGrid.x][currentGrid.y + 1] === 0
     ) {
-      emptyGrid.push({ x: currentGrid.x, y: currentGrid.y + 1 });
+      emptyNeighbours.push({ x: currentGrid.x, y: currentGrid.y + 1 });
     }
 
-    return emptyGrid;
+    return emptyNeighbours;
   };
 
   const changePixelColour = (colour, x, y) => {
@@ -129,13 +131,13 @@ const ImageCanvas = ({ width, height, filter }) => {
 
   const shuffle = (filter) => {
     switch (filter) {
-      case 'redShuffle':
+      case 'shuffle1':
         palette.sort((a, b) => {
           return b.r + b.b - (a.r + a.b);
         });
         break;
 
-      case 'barShuffle':
+      case 'shuffle2':
         palette.sort((a, b) => {
           const rgb = a.r + a.g + a.b;
           const rgbNext = b.r + b.g + b.b;
@@ -145,7 +147,7 @@ const ImageCanvas = ({ width, height, filter }) => {
         });
         break;
 
-      case 'randomShuffle':
+      case 'shuffle3':
         let currentIndex = palette.length;
         let temporaryValue;
         let randomIndex;
